@@ -3,6 +3,8 @@
 > 本文档基于当前示例工程 `example` 的实际实现编写，适合用于快速接入与 OTA 升级流程落地。  
 > This guide is based on the current `example` app implementation and is intended for practical integration and OTA workflow setup.
 
+Support Android, iOS  and MacOS platforms.
+
 ## Special Note
 
 The source code comes from @Infineon AIROC™ Bluetooth® Connect App for Android/ iOS (ex CySmart).
