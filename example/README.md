@@ -3,6 +3,24 @@
 > 本文档基于当前示例工程 `example` 的实际实现编写，适合用于快速接入与 OTA 升级流程落地。  
 > This guide is based on the current `example` app implementation and is intended for practical integration and OTA workflow setup.
 
+## Special Note
+
+The source code comes from @Infineon AIROC™ Bluetooth® Connect App for Android/ iOS (ex CySmart).
+[1] https://github.com/Infineon/airoc-connect-android
+[2] https://github.com/Infineon/airoc-connect-ios
+
+Thank you very much for their source code
+
+## 0）适用场景 / Use Cases
+
+```agsl
+  airoc-connect-flutter:
+    git:
+      url: https://github.com/ArdWang/airoc-connect-flutter.git
+      ref: tags/0.0.1  # 请查看仓库的 Releases 或 Tags 页面以获取正确的标签名
+```
+
+
 ## 1) 项目能力概览 / What This Example Provides
 
 ### 中文
@@ -75,7 +93,7 @@ Example dependencies in `pubspec.yaml`:
 Run in the project directory:
 
 ```bash
-cd "/Users/admin/Development/airoc-connect-flutter/example"
+cd "/Users/xxx/airoc-connect-flutter/example"
 fvm flutter pub get
 ```
 
@@ -87,31 +105,31 @@ fvm flutter pub get
 
 **中文**
 - 已声明传统蓝牙权限（兼容旧版本）和 Android 12+ 权限：
-    - `BLUETOOTH`, `BLUETOOTH_ADMIN`（maxSdkVersion=30）
-    - `BLUETOOTH_SCAN`, `BLUETOOTH_CONNECT`
-    - `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`
+  - `BLUETOOTH`, `BLUETOOTH_ADMIN`（maxSdkVersion=30）
+  - `BLUETOOTH_SCAN`, `BLUETOOTH_CONNECT`
+  - `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`
 - 运行时会在 `ExampleOtaManager.ensurePermissions()` 里请求：
-    - `bluetoothScan`, `bluetoothConnect`, `locationWhenInUse`
+  - `bluetoothScan`, `bluetoothConnect`, `locationWhenInUse`
 
 **English**
 - Manifest includes both legacy and Android 12+ permissions:
-    - `BLUETOOTH`, `BLUETOOTH_ADMIN` (maxSdkVersion=30)
-    - `BLUETOOTH_SCAN`, `BLUETOOTH_CONNECT`
-    - `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`
+  - `BLUETOOTH`, `BLUETOOTH_ADMIN` (maxSdkVersion=30)
+  - `BLUETOOTH_SCAN`, `BLUETOOTH_CONNECT`
+  - `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`
 - Runtime permissions are requested in `ExampleOtaManager.ensurePermissions()`.
 
 ### 5.2 iOS
 
 **中文**
 - `Info.plist` 已包含：
-    - `NSBluetoothAlwaysUsageDescription`
-    - `NSBluetoothPeripheralUsageDescription`
+  - `NSBluetoothAlwaysUsageDescription`
+  - `NSBluetoothPeripheralUsageDescription`
 - 已注册 `.cyacd2` / `.cyacd` 文档类型，便于文件导入。
 
 **English**
 - `Info.plist` already includes Bluetooth usage descriptions:
-    - `NSBluetoothAlwaysUsageDescription`
-    - `NSBluetoothPeripheralUsageDescription`
+  - `NSBluetoothAlwaysUsageDescription`
+  - `NSBluetoothPeripheralUsageDescription`
 - `.cyacd2` / `.cyacd` document types are declared for file handling.
 
 ### 5.3 macOS
@@ -119,14 +137,14 @@ fvm flutter pub get
 **中文**
 - `Info.plist` 提供蓝牙权限说明。
 - `DebugProfile.entitlements` 启用了：
-    - `com.apple.security.device.bluetooth`
-    - `com.apple.security.files.user-selected.read-only`
+  - `com.apple.security.device.bluetooth`
+  - `com.apple.security.files.user-selected.read-only`
 
 **English**
 - `Info.plist` contains Bluetooth usage descriptions.
 - `DebugProfile.entitlements` enables:
-    - `com.apple.security.device.bluetooth`
-    - `com.apple.security.files.user-selected.read-only`
+  - `com.apple.security.device.bluetooth`
+  - `com.apple.security.files.user-selected.read-only`
 
 ---
 
@@ -171,11 +189,11 @@ fvm flutter pub get
 
 - 扫描结果来源：`FlutterBluePlus.onScanResults` / Scan results come from `FlutterBluePlus.onScanResults`
 - 设备过滤 / Device filtering:
-    - 名称前缀：`blue/ota/r/sc` / Name prefix filter: `blue/ota/r/sc`
-    - `otaOnly=true` 时要求广播里包含 OTA Service UUID / When `otaOnly=true`, advertisement must contain OTA service UUID
+  - 名称前缀：`blue/ota/r/sc` / Name prefix filter: `blue/ota/r/sc`
+  - `otaOnly=true` 时要求广播里包含 OTA Service UUID / When `otaOnly=true`, advertisement must contain OTA service UUID
 - 排序策略：先 OTA 能力，再按 RSSI 降序 / Sort by OTA capability first, then RSSI descending
 - Apple 平台稳态处理 / Apple startup stabilization:
-    - 扫描前等待适配器状态变为 `on`（短暂初始化窗口） / Wait for adapter state `on` before scanning
+  - 扫描前等待适配器状态变为 `on`（短暂初始化窗口） / Wait for adapter state `on` before scanning
 
 ### 7.3 简化代码示例 / Minimal Code Example
 
@@ -288,7 +306,7 @@ fvm flutter run -d <your-device-id>
 For Android physical device (example):
 
 ```bash
-cd "/Users/admin/Development/airoc-connect-flutter/example"
+cd "/Users/xxx/airoc-connect-flutter/example"
 fvm flutter run -d 59221JEBF02444
 ```
 
@@ -502,10 +520,11 @@ Future<void> runOtaFlow(BluetoothDevice device) async {
 
 ### 13.7 首次接入自检清单 / First-Integration Checklist
 
-- [ ] `pubspec.yaml` 中 `airoc_connect_flutter` 来源配置正确（path/git/pub） / `airoc_connect_flutter` source in `pubspec.yaml` is correct (path/git/pub)
-- [ ] Android/iOS/macOS 权限声明完整 / Android/iOS/macOS permissions are fully declared
-- [ ] Android 运行时权限已请求并放行 / Android runtime permissions are requested and granted
-- [ ] 目标设备 OTA Service/Characteristic UUID 与代码一致 / OTA service/characteristic UUIDs match target device
-- [ ] 固件格式是 `.cyacd2` 或 `.cyacd` / Firmware format is `.cyacd2` or `.cyacd`
-- [ ] OTA 过程中有进度与错误日志输出 / OTA flow has progress and error logs
+- [*] `pubspec.yaml` 中 `airoc_connect_flutter` 来源配置正确（path/git/pub） / `airoc_connect_flutter` source in `pubspec.yaml` is correct (path/git/pub)
+- [*] Android/iOS/macOS 权限声明完整 / Android/iOS/macOS permissions are fully declared
+- [*] Android 运行时权限已请求并放行 / Android runtime permissions are requested and granted
+- [*] 目标设备 OTA Service/Characteristic UUID 与代码一致 / OTA service/characteristic UUIDs match target device
+- [*] 固件格式是 `.cyacd2` 或 `.cyacd` / Firmware format is `.cyacd2` or `.cyacd`
+- [*] OTA 过程中有进度与错误日志输出 / OTA flow has progress and error logs
+
 
