@@ -29,7 +29,7 @@ dependencies:
   airoc_connect_flutter:
     git:
       url: https://github.com/ArdWang/airoc-connect-flutter.git
-      ref: tags/0.0.2  # 请查看仓库的 Releases 或 Tags 页面以获取正确的标签名
+      ref: tags/0.0.3  # 请查看仓库的 Releases 或 Tags 页面以获取正确的标签名
 
 ```
 
