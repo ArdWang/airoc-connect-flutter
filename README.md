@@ -14,10 +14,10 @@ Thank you very much for their source code
 ## 0）适用场景 / Use Cases
 
 ```agsl
-  airoc-connect-flutter:
+  airoc_connect_flutter:
     git:
       url: https://github.com/ArdWang/airoc-connect-flutter.git
-      ref: tags/0.0.1  # 请查看仓库的 Releases 或 Tags 页面以获取正确的标签名
+      ref: tags/0.0.1
 ```
 
 
