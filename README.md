@@ -9,6 +9,7 @@ Support Android, iOS  and MacOS platforms.
 
 The source code comes from @Infineon AIROC™ Bluetooth® Connect App for Android/ iOS (ex CySmart).
 [1] https://github.com/Infineon/airoc-connect-android
+
 [2] https://github.com/Infineon/airoc-connect-ios
 
 Thank you very much for their source code
