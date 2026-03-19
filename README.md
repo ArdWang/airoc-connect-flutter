@@ -16,10 +16,21 @@ Thank you very much for their source code
 ## 0）适用场景 / Use Cases
 
 ```agsl
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The following adds the Cupertino Icons font to your application.
+  # Use with the CupertinoIcons class for iOS style icons.
+  cupertino_icons: ^1.0.8
+  flutter_blue_plus: ^1.35.4
+  permission_handler: ^11.3.1
+  file_picker: ^8.1.7
   airoc_connect_flutter:
     git:
       url: https://github.com/ArdWang/airoc-connect-flutter.git
-      ref: tags/0.0.1
+      ref: tags/0.0.1  # 请查看仓库的 Releases 或 Tags 页面以获取正确的标签名
+
 ```
 
 
