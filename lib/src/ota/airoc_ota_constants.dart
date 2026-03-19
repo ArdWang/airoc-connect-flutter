@@ -10,14 +10,15 @@ class AirocOtaConstants {
 
   /// UUID of the AIROC OTA Upgrade Service.
   static const String otaServiceUuid =
-      '00060000-f8ce-11e4-abf4-0002a5d5c51b';
+      '00060000-f8ce-0000-abf4-0002a5d5c51b';
 
   /// UUID of the OTA Control Point characteristic.
   ///
   /// Properties: Write, Notify.
-  /// Used to issue commands and receive status notifications.
+  /// Used to issue commands and receive status notifications.p
+  /// 11e4
   static const String otaCharacteristicUuid =
-      '00060001-f8ce-11e4-abf4-0002a5d5c51b';
+      '00060001-f8ce-0000-abf4-0002a5d5c51b';
 
   // ─────────────────────────────────────────────────────────────
   // Packet framing
