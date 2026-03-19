@@ -3,6 +3,14 @@
 > 本文档基于当前示例工程 `example` 的实际实现编写，适合用于快速接入与 OTA 升级流程落地。  
 > This guide is based on the current `example` app implementation and is intended for practical integration and OTA workflow setup.
 
+## Special Note
+
+The source code comes from @Infineon AIROC™ Bluetooth® Connect App for Android/ iOS (ex CySmart).
+[1] https://github.com/Infineon/airoc-connect-android
+[2] https://github.com/Infineon/airoc-connect-ios
+
+Thank you very much for their source code
+
 ## 0）适用场景 / Use Cases
 
 ```agsl
@@ -85,7 +93,7 @@ Example dependencies in `pubspec.yaml`:
 Run in the project directory:
 
 ```bash
-cd "/Users/admin/Development/airoc-connect-flutter/example"
+cd "/Users/xxx/airoc-connect-flutter/example"
 fvm flutter pub get
 ```
 
@@ -298,7 +306,7 @@ fvm flutter run -d <your-device-id>
 For Android physical device (example):
 
 ```bash
-cd "/Users/admin/Development/airoc-connect-flutter/example"
+cd "/Users/xxx/airoc-connect-flutter/example"
 fvm flutter run -d 59221JEBF02444
 ```
 
@@ -512,11 +520,11 @@ Future<void> runOtaFlow(BluetoothDevice device) async {
 
 ### 13.7 首次接入自检清单 / First-Integration Checklist
 
-- [ ] `pubspec.yaml` 中 `airoc_connect_flutter` 来源配置正确（path/git/pub） / `airoc_connect_flutter` source in `pubspec.yaml` is correct (path/git/pub)
-- [ ] Android/iOS/macOS 权限声明完整 / Android/iOS/macOS permissions are fully declared
-- [ ] Android 运行时权限已请求并放行 / Android runtime permissions are requested and granted
-- [ ] 目标设备 OTA Service/Characteristic UUID 与代码一致 / OTA service/characteristic UUIDs match target device
-- [ ] 固件格式是 `.cyacd2` 或 `.cyacd` / Firmware format is `.cyacd2` or `.cyacd`
-- [ ] OTA 过程中有进度与错误日志输出 / OTA flow has progress and error logs
+- [*] `pubspec.yaml` 中 `airoc_connect_flutter` 来源配置正确（path/git/pub） / `airoc_connect_flutter` source in `pubspec.yaml` is correct (path/git/pub)
+- [*] Android/iOS/macOS 权限声明完整 / Android/iOS/macOS permissions are fully declared
+- [*] Android 运行时权限已请求并放行 / Android runtime permissions are requested and granted
+- [*] 目标设备 OTA Service/Characteristic UUID 与代码一致 / OTA service/characteristic UUIDs match target device
+- [*] 固件格式是 `.cyacd2` 或 `.cyacd` / Firmware format is `.cyacd2` or `.cyacd`
+- [*] OTA 过程中有进度与错误日志输出 / OTA flow has progress and error logs
 
 
