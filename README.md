@@ -309,7 +309,7 @@ await manager.dispose();
 ## 11) 快速运行命令 / Quick Run Commands
 
 ```bash
-cd "/Users/admin/Development/airoc-connect-flutter/example"
+cd "/Users/xxx/airoc-connect-flutter/example"
 fvm flutter pub get
 fvm flutter devices
 fvm flutter run -d <your-device-id>
