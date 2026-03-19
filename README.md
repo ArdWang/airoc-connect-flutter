@@ -338,9 +338,6 @@ fvm flutter run -d 59221JEBF02444
 
 ---
 
-如果你希望，我可以继续给你一版“面向量产项目”的文档模板（包含版本兼容矩阵、升级回滚策略、错误码规范、QA 测试清单），同样做中英文双语。  
-If you want, I can also generate a production-oriented bilingual template with compatibility matrix, rollback strategy, error taxonomy, and QA checklist.
-
 ---
 
 ## 13) 在新项目中接入（从 0 到可运行） / Using in a New Project (From Scratch)
