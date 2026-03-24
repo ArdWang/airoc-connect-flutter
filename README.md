@@ -27,10 +27,11 @@ dependencies:
   flutter_blue_plus: ^1.35.4
   permission_handler: ^11.3.1
   file_picker: ^8.1.7
-  airoc_connect_flutter:
-    git:
-      url: https://github.com/ArdWang/airoc-connect-flutter.git
-      ref: tags/0.0.3  # 请查看仓库的 Releases 或 Tags 页面以获取正确的标签名
+  airoc_connect_flutter: ^0.0.3+3
+  #airoc_connect_flutter:
+   # git:
+    #  url: https://github.com/ArdWang/airoc-connect-flutter.git
+     # ref: tags/0.0.3  # 请查看仓库的 Releases 或 Tags 页面以获取正确的标签名
 
 ```
 
