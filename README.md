@@ -5,6 +5,11 @@
 
 Support Android, iOS  and MacOS platforms.
 
+## notice
+final String otaServiceUuid;
+final String otaCharacteristicUuid;
+By default, the OTA uuid needs to be passed in
+
 ## Special Note
 
 The source code comes from @Infineon AIROC™ Bluetooth® Connect App for Android/ iOS (ex CySmart).
