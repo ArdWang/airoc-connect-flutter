@@ -32,11 +32,11 @@ dependencies:
   flutter_blue_plus: ^1.35.4
   permission_handler: ^11.3.1
   file_picker: ^8.1.7
-  airoc_connect_flutter: ^0.0.3+3
+  airoc_connect_flutter: ^0.0.5
   #airoc_connect_flutter:
    # git:
     #  url: https://github.com/ArdWang/airoc-connect-flutter.git
-     # ref: tags/0.0.3  # 请查看仓库的 Releases 或 Tags 页面以获取正确的标签名
+     # ref: tags/0.0.5  # 请查看仓库的 Releases 或 Tags 页面以获取正确的标签名
 
 ```
 
@@ -172,23 +172,23 @@ fvm flutter pub get
 
 ### 中文
 1. 进入首页后，点击 **Scan Devices**。
-2. 在设备列表中点击 **Read UUIDs** 读取服务/特征。
-3. 在 Step 2 中选择 `Service UUID` 与 `Characteristic UUID`。
-4. 点击 **Continue to OTA** 进入 OTA 页面。
-5. 点击 **Select Firmware** 选择 `.cyacd2/.cyacd`。
-6. 点击 **Scan Devices** 重新扫描可升级设备。
-7. 点击设备项进入升级页，点击 **Start OTA Upgrade**。
-8. 观察进度条、结果状态、传输字节数和日志。
+2. 在设备列表中点击任意设备进入 OTA 升级界面。
+3. **Step 1: Discover Services** - 点击 "Discover Services" 读取服务 UUID（首次连接会自动配对）
+4. 选择 `Service UUID` 与 `Characteristic UUID`。
+5. **Step 2: Select Firmware** - 点击 "Select Firmware File" 选择 `.cyacd2/.cyacd` 文件。
+6. **Step 3: Start OTA Upgrade** - 点击 "Start OTA Upgrade" 开始升级。
+7. 观察进度条、结果状态、传输字节数和日志。
+8. 升级完成后 2 秒自动返回扫描界面。
 
 ### English
 1. On the home screen, tap **Scan Devices**.
-2. Tap **Read UUIDs** on a device to discover services/chars.
-3. In Step 2, select `Service UUID` and `Characteristic UUID`.
-4. Tap **Continue to OTA** to open OTA flow.
-5. Tap **Select Firmware** and choose `.cyacd2/.cyacd`.
-6. Tap **Scan Devices** to find upgrade targets.
-7. Tap a device, then press **Start OTA Upgrade**.
-8. Monitor progress bar, status, bytes transferred, and logs.
+2. Tap any device to open the OTA upgrade screen.
+3. **Step 1: Discover Services** - Tap "Discover Services" to read UUIDs (auto-pair on first connect).
+4. Select `Service UUID` and `Characteristic UUID`.
+5. **Step 2: Select Firmware** - Tap "Select Firmware File" and choose `.cyacd2/.cyacd`.
+6. **Step 3: Start OTA Upgrade** - Tap "Start OTA Upgrade" to begin.
+7. Monitor progress bar, status, bytes transferred, and logs.
+8. Auto-returns to scan screen 2 seconds after completion.
 
 ---
 

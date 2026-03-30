@@ -1,9 +1,10 @@
 import 'dart:io';
-import 'dart:typed_data';
+import 'dart:async';
 
 import 'package:airoc_connect_flutter/airoc_connect_flutter.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../ble/airoc_ble_scanner.dart';
@@ -155,6 +156,68 @@ class ExampleOtaManager {
       onProgress: onProgress,
       securityKeyOverride: securityKeyOverride,
     );
+  }
+
+  /// Check if the device is currently bonded/paired
+  Future<bool> isDeviceBonded(AirocDevice device) async {
+    final state = await device.device.bondState.first;
+    return state == BluetoothBondState.bonded;
+  }
+
+  /// Create a bond/pair with the device
+  /// Note: Device must be connected before pairing.
+  Future<bool> pairDevice(AirocDevice device) async {
+    // Check current bond state
+    final initialState = await device.device.bondState.first;
+    if (initialState == BluetoothBondState.bonded) {
+      AirocDataLogger.instance.i('BLE', 'Device already bonded');
+      return true;
+    }
+
+    try {
+      // Ensure device is connected before pairing
+      if (device.device.isDisconnected) {
+        AirocDataLogger.instance.i('BLE', 'Connecting device before pairing…');
+        await device.device.connect(
+          timeout: const Duration(seconds: 10),
+          mtu: null,
+        );
+        // Wait for connection to stabilize
+        await Future.delayed(const Duration(milliseconds: 300));
+      }
+
+      // Now create bond (pairing)
+      AirocDataLogger.instance.i('BLE', 'Creating bond…');
+      await device.device.createBond();
+
+      // Wait for bond state to update to bonded
+      AirocDataLogger.instance.i('BLE', 'Waiting for bond to complete…');
+      final bondState = await device.device.bondState
+          .firstWhere((state) => state == BluetoothBondState.bonded,
+              orElse: () => BluetoothBondState.none)
+          .timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          AirocDataLogger.instance.w('BLE', 'Bond timeout, checking current state…');
+          return BluetoothBondState.none;
+        },
+      );
+
+      final isBonded = bondState == BluetoothBondState.bonded;
+      AirocDataLogger.instance.i('BLE', 'Bond ${isBonded ? "success" : "failed"}: $bondState');
+
+      // Keep device connected for immediate OTA, user can navigate back to disconnect
+      return isBonded;
+    } catch (e) {
+      AirocDataLogger.instance.e('BLE', 'Pairing failed: $e');
+      return false;
+    }
+  }
+
+  /// Get the current bond state of the device
+  Future<String> getDeviceBondState(AirocDevice device) async {
+    final state = await device.device.bondState.first;
+    return state.toString();
   }
 
   void cancelOta() {

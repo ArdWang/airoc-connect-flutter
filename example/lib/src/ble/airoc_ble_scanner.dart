@@ -12,6 +12,7 @@ class AirocBleScanner {
     'ota',
     'r',
     'sc',
+    'upg'
   ];
 
   final StreamController<List<AirocDevice>> _devicesController =
