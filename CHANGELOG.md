@@ -1,5 +1,13 @@
 # AIROC Connect Flutter Changelog
 
+## 0.0.6
+
+**Version Bump**
+
+- Update version from 0.0.5 to 0.0.6
+
+---
+
 ## 0.0.5
 
 **Major UI Refactor and OTA Workflow Optimization**
