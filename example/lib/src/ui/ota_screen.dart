@@ -31,6 +31,7 @@ class _OtaScreenState extends State<OtaScreen> {
   // Pairing state
   bool _isBonded = false;
   bool _isBonding = false;
+  bool _isUnpairing = false;
 
   // UUID discovery
   bool _isLoadingUuids = false;
@@ -264,6 +265,19 @@ class _OtaScreenState extends State<OtaScreen> {
       _running = false;
       _result = result;
     });
+
+    // Unpair the device after OTA completes
+    if (mounted) {
+      setState(() => _isUnpairing = true);
+      AirocDataLogger.instance.i('UI', 'OTA finished, unpairing device…');
+      final unpaired = await widget.manager.unpairDevice(widget.device);
+      if (!mounted) return;
+      setState(() {
+        _isUnpairing = false;
+        _isBonded = _isBonded && !unpaired;
+      });
+      AirocDataLogger.instance.i('UI', 'Unpair ${unpaired ? "succeeded" : "failed"}');
+    }
 
     // Auto-navigate back to scan screen after OTA completes
     if (mounted) {
@@ -711,6 +725,18 @@ class _OtaScreenState extends State<OtaScreen> {
   }
 
   Widget _buildBondStateChip() {
+    if (_isUnpairing) {
+      return const Chip(
+        avatar: SizedBox(
+          width: 14,
+          height: 14,
+          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+        ),
+        label: Text('Unpairing…'),
+        backgroundColor: Colors.orange,
+        labelStyle: TextStyle(color: Colors.white, fontSize: 12),
+      );
+    }
     if (_isBonding) {
       return const Chip(
         avatar: SizedBox(

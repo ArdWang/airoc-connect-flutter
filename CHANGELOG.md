@@ -8,6 +8,7 @@
 
 ### New Features
 
+- **Auto-Unpair After OTA** - Once the upgrade completes, the device is automatically unpaired to clean up the pairing state: Android calls `removeBond()`, while iOS/macOS disconnect (CoreBluetooth exposes no programmatic unpair API).
 - **Explicit Manual Pairing** — Added "Pair Device" as Step 1 in the OTA workflow. Users must manually pair before proceeding to service discovery and upgrade. Paired state is visually indicated (Not Paired / Pairing… / Paired ✓).
 - **4-Step OTA Workflow** — Expanded from 3 steps to 4 steps for clearer operation flow:
   - **Step 1: Pair Device** — Manually pair with the device
