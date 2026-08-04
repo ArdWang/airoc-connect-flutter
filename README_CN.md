@@ -15,6 +15,7 @@
 
 - BLE 设备扫描和发现
 - **显式手动配对** — 升级前配对一次，无意外弹窗
+- **OTA 后自动取消配对** - 升级完成后自动移除配对（Android：`removeBond()`；iOS/macOS：断开连接）
 - **单一连续连接** — iOS 风格的单连接模型，无重复重连
 - 服务和特征 UUID 发现（带属性过滤）
 - `.cyacd2` 和 `.cyacd` 固件文件支持
@@ -121,6 +122,7 @@ OTA 界面实现了清晰的四步工作流程：
 4. **步骤 4: 开始升级 (Start OTA Upgrade)**
    - 点击"开始 OTA 升级"开始固件更新
    - 通过进度条和日志查看器监控进度
+   - 完成后自动取消配对（Android：`removeBond()`；iOS/macOS：断开连接）
    - 完成后自动返回扫描界面
 
 ### 底部提示条
@@ -197,6 +199,7 @@ OTA 界面实现了清晰的四步工作流程：
 | `isDeviceBonded(device)` | 检查设备是否已配对 |
 | `pairDevice(device)` | 与设备配对（绑定） |
 | `getDeviceBondState(device)` | 获取当前绑定状态字符串 |
+| `unpairDevice(device)` | OTA 后取消配对（移除绑定） |
 | `dispose()` | 释放资源 |
 
 ### AirocBleScanner

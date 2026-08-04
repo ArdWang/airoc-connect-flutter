@@ -247,6 +247,61 @@ class ExampleOtaManager {
     }
   }
 
+  /// Remove the bond/pair with the device (e.g. after OTA completes).
+  ///
+  /// Android: explicitly removes the bond via [BluetoothDevice.removeBond].
+  /// iOS/macOS: CoreBluetooth exposes no API to remove a bond, so the device
+  /// is disconnected; any system-level pairing must be removed via
+  /// System Settings > Bluetooth.
+  Future<bool> unpairDevice(AirocDevice device) async {
+    if (_isAndroid) {
+      try {
+        final initialState = await device.device.bondState.first;
+        if (initialState == BluetoothBondState.none) {
+          AirocDataLogger.instance.i('BLE', 'Device already unbonded');
+          return true;
+        }
+        AirocDataLogger.instance.i('BLE', 'Removing bond (unpair)…');
+        await device.device.removeBond();
+        final bondState = await device.device.bondState
+            .firstWhere((state) => state == BluetoothBondState.none,
+                orElse: () => BluetoothBondState.bonded)
+            .timeout(
+          const Duration(seconds: 10),
+          onTimeout: () {
+            AirocDataLogger.instance.w('BLE', 'Unbond timeout, checking current state…');
+            return BluetoothBondState.bonded;
+          },
+        );
+        final removed = bondState == BluetoothBondState.none;
+        AirocDataLogger.instance.i('BLE', 'Unbond ${removed ? "success" : "failed"}: $bondState');
+        return removed;
+      } catch (e) {
+        AirocDataLogger.instance.e('BLE', 'Unpair failed: $e');
+        return false;
+      }
+    }
+
+    // iOS/macOS: CoreBluetooth exposes no programmatic removeBond API.
+    // Disconnect the device; system-level pairing must be removed via
+    // System Settings > Bluetooth.
+    try {
+      if (device.device.isConnected) {
+        AirocDataLogger.instance.i('BLE', 'Disconnecting device (unpair)…');
+        await device.device.disconnect();
+      }
+      AirocDataLogger.instance.i(
+        'BLE',
+        'Device disconnected. On iOS/macOS, remove the pairing via '
+        'System Settings > Bluetooth if needed.',
+      );
+      return true;
+    } catch (e) {
+      AirocDataLogger.instance.e('BLE', 'Disconnect failed: $e');
+      return false;
+    }
+  }
+
   /// Get the current bond state of the device
   Future<String> getDeviceBondState(AirocDevice device) async {
     // iOS/macOS 无法查询 bondState，返回连接状态作为近似。

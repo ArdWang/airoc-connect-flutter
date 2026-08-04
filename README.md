@@ -15,6 +15,7 @@ This plugin provides Bluetooth OTA firmware upgrade capabilities for Infineon AI
 
 - BLE device scanning and discovery
 - **Explicit manual pairing** — pair once before upgrade, no surprise dialogs
+- **Auto-unpair after OTA** - automatically removes the pairing once the upgrade completes (Android: `removeBond()`; iOS/macOS: disconnect)
 - **Single continuous connection** — iOS-style single-connection model, no repeated reconnection
 - Service and characteristic UUID discovery with property filtering
 - `.cyacd2` and `.cyacd` firmware file support
@@ -121,6 +122,7 @@ The OTA screen implements a clear four-step workflow:
 4. **Step 4: Start OTA Upgrade**
    - Tap "Start OTA Upgrade" to begin the firmware upgrade
    - Monitor progress via the progress bar and log viewer
+   - Automatically unpairs the device after completion (Android: `removeBond()`; iOS/macOS: disconnect)
    - Automatically returns to scan screen after completion
 
 ### Bottom Hint Bar
@@ -197,6 +199,7 @@ Add entitlements to `macos/Runner/DebugProfile.entitlements`:
 | `isDeviceBonded(device)` | Check if device is paired |
 | `pairDevice(device)` | Pair (bond) with the device |
 | `getDeviceBondState(device)` | Get current bond state string |
+| `unpairDevice(device)` | Unpair (remove bond) after OTA |
 | `dispose()` | Release resources |
 
 ### AirocBleScanner
