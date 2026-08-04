@@ -1,5 +1,41 @@
 # AIROC Connect Flutter Changelog
 
+## 0.0.7
+
+**OTA Workflow Redesign & Connection Stability**
+
+**Platform Support**: Android, iOS, macOS
+
+### New Features
+
+- **Explicit Manual Pairing** — Added "Pair Device" as Step 1 in the OTA workflow. Users must manually pair before proceeding to service discovery and upgrade. Paired state is visually indicated (Not Paired / Pairing… / Paired ✓).
+- **4-Step OTA Workflow** — Expanded from 3 steps to 4 steps for clearer operation flow:
+  - **Step 1: Pair Device** — Manually pair with the device
+  - **Step 2: Discover Services** — Read device service UUIDs
+  - **Step 3: Select Firmware** — Choose a firmware file
+  - **Step 4: Start OTA Upgrade** — Begin the firmware update
+- **Colorized Debug Logging** — Terminal output now uses ANSI color coding: level-specific badges (blue=info, yellow=warning, red=error), green tags, gray timestamps, magenta TX / cyan RX hex dumps.
+- **Characteristic Property Filtering** — Service discovery dropdowns now only show characteristics that support both WRITE and NOTIFY capabilities.
+
+### Bug Fixes
+
+- **Fixed Repeated Pairing Prompts** — Eliminated unnecessary disconnect/reconnect cycles throughout the OTA flow. A single continuous BLE connection is now maintained from pairing through OTA completion, matching iOS CoreBluetooth behavior.
+- **Fixed "WRITE property not supported" Error** — Transport layer now auto-detects whether the characteristic supports `write` or `writeWithoutResponse` and uses the correct write mode.
+- **Fixed Multiple `createBond()` Calls** — Removed auto-pairing logic from the transport layer. Pairing is now exclusively handled by the user-facing "Pair Device" step.
+
+### Technical Improvements
+
+- **Single Continuous Connection** — `FlutterBluePlusOtaTransport.connect()` no longer forces disconnect/reconnect when the device is already connected. It reuses the existing connection to avoid bond re-negotiation.
+- **Transport Write Detection** — `write()` auto-falls back to `writeWithoutResponse` when the characteristic lacks WRITE property.
+- **Characteristic Discovery** — `discover()` logs all characteristic properties and selects the best match with both WRITE and NOTIFY capabilities.
+- **Pairing State Management** — Bond state is checked on OTA screen init to detect previously-paired devices.
+
+### Notes
+
+- **One Connection, One Pairing** — Following the iOS CoreBluetooth model, the app now uses a single Bluetooth connection throughout the entire OTA session. Users should only see the pairing dialog once.
+
+---
+
 ## 0.0.6
 
 **Version Bump**

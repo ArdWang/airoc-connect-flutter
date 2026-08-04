@@ -31,17 +31,29 @@ class FlutterBluePlusOtaTransport implements AirocOtaTransport {
 
   @override
   Future<void> connect() async {
-    // First ensure device is fully disconnected before reconnecting
-    // This prevents GATT 133 errors from connection conflicts
+    // If already connected, reuse the existing connection (like iOS does).
+    // This avoids disconnect/reconnect cycles that trigger repeat pairing on Android.
     if (device.isConnected) {
-      AirocDataLogger.instance.i('BLE', 'Device already connected, disconnecting first…');
-      await device.disconnect();
-      await Future.delayed(const Duration(milliseconds: 500));
+      AirocDataLogger.instance.i('BLE', 'Device already connected, reusing existing connection ✓');
+
+      // Verify bond state on the live connection
+      final bondState = await device.bondState.first;
+      final isBonded = bondState.toString().contains('bonded');
+      if (!isBonded) {
+        AirocDataLogger.instance.w(
+          'BLE',
+          'Device is NOT bonded ($bondState). '
+          'Please pair with the device before starting OTA upgrade.',
+        );
+        throw AirocOtaProtocolException(
+          'Device is not paired. Please go back to Step 1 and pair the device first.',
+        );
+      }
+      AirocDataLogger.instance.i('BLE', 'Device is bonded ✓');
+      return;
     }
 
-    // Clear GATT cache by waiting a bit
-    await Future.delayed(const Duration(milliseconds: 200));
-
+    // Device is not connected — connect fresh
     AirocDataLogger.instance
         .i('BLE', 'Connecting to ${device.remoteId.str} (${device.platformName})…');
     await device.connect(
@@ -51,29 +63,23 @@ class FlutterBluePlusOtaTransport implements AirocOtaTransport {
     AirocDataLogger.instance
         .i('BLE', 'Connected ✓  remoteId=${device.remoteId.str}');
 
-    // Wait a bit for bond state to update after connection
-    // The bondState stream may return stale data immediately after connect
+    // Wait for bond state to settle after connection
     await Future.delayed(const Duration(milliseconds: 300));
 
-    // Check bond state AFTER connection is established with fresh value
+    // Verify the device is bonded (pairing should be done externally before OTA)
     final bondState = await device.bondState.first;
-    AirocDataLogger.instance.i('BLE', 'Bond state: $bondState');
-
-    // Only pair if not bonded - use string comparison for reliability
     final isBonded = bondState.toString().contains('bonded');
     if (!isBonded) {
-      AirocDataLogger.instance.w('BLE', 'Device not bonded! Pairing now…');
-      await device.createBond();
-      // Wait up to 10 seconds for pairing to complete
-      for (int i = 0; i < 20; i++) {
-        final state = await device.bondState.first;
-        if (state.toString().contains('bonded')) break;
-        await Future.delayed(const Duration(milliseconds: 500));
-      }
-      AirocDataLogger.instance.i('BLE', 'Paired ✓');
-    } else {
-      AirocDataLogger.instance.i('BLE', 'Device already bonded ✓');
+      AirocDataLogger.instance.w(
+        'BLE',
+        'Device is NOT bonded ($bondState). '
+        'Please pair with the device before starting OTA upgrade.',
+      );
+      throw AirocOtaProtocolException(
+        'Device is not paired. Please go back to Step 1 and pair the device first.',
+      );
     }
+    AirocDataLogger.instance.i('BLE', 'Device is bonded ✓');
   }
 
   /// Check if the device is currently bonded/paired
@@ -93,13 +99,54 @@ class FlutterBluePlusOtaTransport implements AirocOtaTransport {
       throw const AirocOtaProtocolException('OTA service was not found.');
     }
 
-    final characteristicList = otaServiceList.first.characteristics.where(
+    final otaService = otaServiceList.first;
+    final allChars = otaService.characteristics;
+
+    // Log all discovered characteristics for debugging
+    for (final c in allChars) {
+      AirocDataLogger.instance.v(
+        'BLE',
+        'Characteristic: ${c.uuid}  properties=${c.properties}',
+      );
+    }
+
+    // Find characteristic matching OTA UUID that supports WRITE and NOTIFY
+    final characteristicList = allChars.where(
       (c) => c.uuid == _otaCharacteristicGuid,
     );
+
     if (characteristicList.isEmpty) {
       throw const AirocOtaProtocolException('OTA characteristic was not found.');
     }
-    _characteristic = characteristicList.first;
+
+    // Pick the first characteristic that has both WRITE and NOTIFY properties
+    BluetoothCharacteristic? bestChar;
+    for (final c in characteristicList) {
+      final hasWrite = c.properties.write || c.properties.writeWithoutResponse;
+      final hasNotify = c.properties.notify || c.properties.indicate;
+      AirocDataLogger.instance.i(
+        'BLE',
+        'OTA char ${c.uuid}: write=$hasWrite notify=$hasNotify  '
+        'props=${c.properties}',
+      );
+      if (hasWrite && hasNotify) {
+        bestChar = c;
+        break;
+      }
+    }
+
+    if (bestChar == null) {
+      // Fallback to first matching characteristic even without proper properties
+      bestChar = characteristicList.first;
+      AirocDataLogger.instance.w(
+        'BLE',
+        'OTA characteristic found but missing WRITE or NOTIFY property! '
+        'This may cause OTA to fail. Using ${bestChar.uuid} anyway.',
+      );
+    }
+
+    _characteristic = bestChar;
+    AirocDataLogger.instance.i('BLE', 'Selected characteristic: ${_characteristic!.uuid}');
   }
 
   @override
@@ -120,9 +167,20 @@ class FlutterBluePlusOtaTransport implements AirocOtaTransport {
 
   @override
   Future<void> write(List<int> data, {bool withoutResponse = false}) {
-    return _requireCharacteristic().write(
+    final char = _requireCharacteristic();
+    // Auto-detect: if characteristic doesn't support regular WRITE,
+    // fall back to WRITE_WITHOUT_RESPONSE
+    final useWithoutResponse = withoutResponse ||
+        (!char.properties.write && char.properties.writeWithoutResponse);
+    if (useWithoutResponse && !withoutResponse) {
+      AirocDataLogger.instance.v(
+        'BLE',
+        'Characteristic only supports writeWithoutResponse, using that mode',
+      );
+    }
+    return char.write(
       data,
-      withoutResponse: withoutResponse,
+      withoutResponse: useWithoutResponse,
     );
   }
 

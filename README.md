@@ -14,13 +14,15 @@ This plugin provides Bluetooth OTA firmware upgrade capabilities for Infineon AI
 ## Features
 
 - BLE device scanning and discovery
-- Automatic device pairing on first connection
-- Service and characteristic UUID discovery
+- **Explicit manual pairing** — pair once before upgrade, no surprise dialogs
+- **Single continuous connection** — iOS-style single-connection model, no repeated reconnection
+- Service and characteristic UUID discovery with property filtering
 - `.cyacd2` and `.cyacd` firmware file support
 - Real-time OTA progress updates
-- Detailed error logging and diagnostics
+- **Color-coded debug logging** with ANSI terminal colors
 - Smart operation hints based on current state
 - Auto-return to scan screen after OTA completion
+- **Auto-detection of write mode** (write vs writeWithoutResponse)
 
 ## Installation
 
@@ -31,7 +33,7 @@ dependencies:
   flutter:
     sdk: flutter
 
-  airoc_connect_flutter: ^0.0.5
+  airoc_connect_flutter: ^0.0.7
 ```
 
 ### Platform Requirements
@@ -63,6 +65,10 @@ await manager.startScan(otaOnly: false);
 manager.scanner.devicesStream.listen((devices) {
   // Update UI with discovered devices
 });
+
+// Pair with device before OTA
+final paired = await manager.pairDevice(selectedDevice);
+if (!paired) throw Exception('Pairing failed');
 
 // Select firmware and perform OTA
 final otaFile = await manager.pickFirmwareFile();
@@ -96,18 +102,23 @@ Navigator.of(context).push(
 
 ### OTA Screen Workflow
 
-The OTA screen implements a streamlined three-step workflow:
+The OTA screen implements a clear four-step workflow:
 
-1. **Step 1: Discover Services**
+1. **Step 1: Pair Device**
+   - Tap "Pair Device" to pair with the device
+   - Device status chip shows pairing progress (Not Paired → Pairing… → Paired ✓)
+   - Subsequent steps are locked until pairing succeeds
+
+2. **Step 2: Discover Services**
    - Tap "Discover Services" to read device UUIDs
-   - System will automatically prompt for pairing on first connect
+   - Only characteristics with WRITE + NOTIFY properties are shown
    - Select Service UUID and Characteristic UUID from dropdown menus
 
-2. **Step 2: Select Firmware**
+3. **Step 3: Select Firmware**
    - Tap "Select Firmware File" to choose a `.cyacd2` or `.cyacd` file
    - File details (rows, size) are displayed after selection
 
-3. **Step 3: Start OTA Upgrade**
+4. **Step 4: Start OTA Upgrade**
    - Tap "Start OTA Upgrade" to begin the firmware upgrade
    - Monitor progress via the progress bar and log viewer
    - Automatically returns to scan screen after completion
@@ -118,9 +129,10 @@ The screen includes a smart hint bar that displays context-aware messages:
 
 | State | Hint Message |
 |-------|--------------|
-| Services not discovered | "Step 1: Tap 'Discover Services' to read device UUIDs (pairing will happen automatically on first connect)." |
-| Firmware not selected | "Step 2: Tap 'Select Firmware' to choose a firmware file." |
-| Ready to start | "Ready! Note: Device may prompt for pairing again when entering bootloader mode - this is normal." |
+| Not paired | "Step 1: Tap 'Pair Device' to pair with the device first." |
+| Services not discovered | "Step 2: Tap 'Discover Services' to read device UUIDs." |
+| Firmware not selected | "Step 3: Tap 'Select Firmware' to choose a firmware file." |
+| Ready to start | "Ready! Tap 'Start OTA Upgrade' to begin the firmware update." |
 
 ## Configuration
 
@@ -183,7 +195,8 @@ Add entitlements to `macos/Runner/DebugProfile.entitlements`:
 | `performOta({device, file, onProgress})` | Execute OTA upgrade |
 | `cancelOta()` | Cancel ongoing OTA upgrade |
 | `isDeviceBonded(device)` | Check if device is paired |
-| `pairDevice(device)` | Pair with device |
+| `pairDevice(device)` | Pair (bond) with the device |
+| `getDeviceBondState(device)` | Get current bond state string |
 | `dispose()` | Release resources |
 
 ### AirocBleScanner
@@ -227,7 +240,7 @@ Add entitlements to `macos/Runner/DebugProfile.entitlements`:
 
 ### No Devices Found
 
-- Verify device advertisement name matches prefix filter (`blue/ota/r/sc`)
+- Verify device advertisement name matches prefix filter (`blue/ota/r/sc/upg`)
 - Disable `otaOnly` first to isolate OTA-service filtering issues
 - On Android, ensure Bluetooth + Location are enabled and granted
 
@@ -241,18 +254,18 @@ Add entitlements to `macos/Runner/DebugProfile.entitlements`:
 - Confirm selected service/characteristic UUIDs match device OTA protocol
 - Validate firmware/device compatibility and signing/security constraints
 - Check OTA `errorMessage` and log panel for phase-level diagnostics
+- Verify the characteristic supports WRITE + NOTIFY properties (Step 2 only shows valid ones)
 
-### Repeated Pairing Prompts
+### "WRITE property not supported" Error
 
-- If device changes MAC address in bootloader mode, system treats it as new device
-- This is expected behavior and cannot be avoided
-- User should confirm pairing prompt when it appears
+- The plugin now auto-detects write mode — verify your characteristic has either `write` or `writeWithoutResponse` property
+- Step 2 dropdown only shows characteristics with valid write properties
 
-### GATT 133 Error
+### "Device is not paired" Error
 
-- Usually caused by connection conflicts or GATT cache issues
-- Current implementation includes automatic disconnection and retry logic
-- Ensure device is not connected to other apps during OTA
+- Make sure you complete Step 1 (Pair Device) before starting the upgrade
+- If the device was previously paired, the app will detect it automatically on init
+- On Android, ensure the device accepts the pairing request
 
 ## Firmware File Format
 

@@ -9,9 +9,10 @@ import 'widgets/data_log_viewer.dart';
 import 'widgets/ota_progress_bar.dart';
 
 /// OTA Upgrade screen with workflow:
-/// 1. Discover services (auto-pair during connection)
-/// 2. Select firmware file
-/// 3. Start OTA upgrade
+/// 1. Pair device (manual pairing)
+/// 2. Discover services
+/// 3. Select firmware file
+/// 4. Start OTA upgrade
 class OtaScreen extends StatefulWidget {
   final AirocDevice device;
   final ExampleOtaManager manager;
@@ -27,6 +28,10 @@ class OtaScreen extends StatefulWidget {
 }
 
 class _OtaScreenState extends State<OtaScreen> {
+  // Pairing state
+  bool _isBonded = false;
+  bool _isBonding = false;
+
   // UUID discovery
   bool _isLoadingUuids = false;
   String? _uuidError;
@@ -45,10 +50,76 @@ class _OtaScreenState extends State<OtaScreen> {
   @override
   void initState() {
     super.initState();
+    // Check if device is already bonded
+    _checkInitialBondState();
   }
 
-  /// Step 1: Discover services and characteristics (includes auto-pair)
+  /// Check if the device is already paired (e.g. from a previous session)
+  Future<void> _checkInitialBondState() async {
+    try {
+      final isBonded = await widget.manager.isDeviceBonded(widget.device);
+      if (!mounted) return;
+      setState(() {
+        _isBonded = isBonded;
+      });
+    } catch (_) {
+      // Device may be out of range - that's fine, user will pair manually
+    }
+  }
+
+  /// Step 1: Pair device manually
+  Future<void> _pairDevice() async {
+    if (_isBonding || _isBonded) return;
+
+    setState(() {
+      _isBonding = true;
+    });
+
+    try {
+      final success = await widget.manager.pairDevice(widget.device);
+      if (!mounted) return;
+      setState(() {
+        _isBonding = false;
+        _isBonded = success;
+      });
+
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Device paired successfully ✓'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Pairing failed. Please try again.'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isBonding = false;
+        _isBonded = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Pairing error: $e'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
+  }
+
+  /// Step 2: Discover services and characteristics
   Future<void> _loadUuidsFromDevice() async {
+    if (!_isBonded) return;
+
     setState(() {
       _isLoadingUuids = true;
       _uuidError = null;
@@ -59,7 +130,7 @@ class _OtaScreenState extends State<OtaScreen> {
 
     final bluetoothDevice = widget.device.device;
     try {
-      // Ensure connected - system will prompt for pairing if needed
+      // Connect to device (pairing already done in step 1)
       if (bluetoothDevice.isDisconnected) {
         await bluetoothDevice.connect(
           timeout: const Duration(seconds: 10),
@@ -70,16 +141,21 @@ class _OtaScreenState extends State<OtaScreen> {
       // Discover services
       final discoveredServices = await bluetoothDevice.discoverServices();
 
-      final services = discoveredServices
-          .where((s) => s.characteristics.isNotEmpty)
-          .map(
-            (s) => _ServiceWithCharacteristics(
-              serviceUuid: s.uuid.toString(),
-              characteristicUuids:
-                  s.characteristics.map((c) => c.uuid.toString()).toList(),
-            ),
-          )
-          .toList();
+      // Filter: only include characteristics that support WRITE and NOTIFY
+      final services = <_ServiceWithCharacteristics>[];
+      for (final service in discoveredServices) {
+        final validChars = service.characteristics.where((c) {
+          final hasWrite = c.properties.write || c.properties.writeWithoutResponse;
+          final hasNotify = c.properties.notify || c.properties.indicate;
+          return hasWrite && hasNotify;
+        }).toList();
+        if (validChars.isNotEmpty) {
+          services.add(_ServiceWithCharacteristics(
+            serviceUuid: service.uuid.toString(),
+            characteristicUuids: validChars.map((c) => c.uuid.toString()).toList(),
+          ));
+        }
+      }
 
       if (services.isEmpty) {
         setState(() {
@@ -109,21 +185,18 @@ class _OtaScreenState extends State<OtaScreen> {
       setState(() {
         _uuidError = 'Failed to discover services: $e';
       });
-    } finally {
-      // Disconnect after reading services - OTA will reconnect
-      if (bluetoothDevice.isConnected) {
-        await bluetoothDevice.disconnect();
-        await Future.delayed(const Duration(milliseconds: 300));
-      }
-      if (mounted) {
-        setState(() {
-          _isLoadingUuids = false;
-        });
-      }
+    }
+    // Keep connection alive — OTA will reuse the same connection without
+    // reconnecting, just like iOS CoreBluetooth does. This avoids Android
+    // re-triggering the pairing dialog on reconnect.
+    if (mounted) {
+      setState(() {
+        _isLoadingUuids = false;
+      });
     }
   }
 
-  /// Step 2: Select firmware file
+  /// Step 3: Select firmware file
   Future<void> _selectFirmwareFile() async {
     OtaFile? file;
     try {
@@ -144,16 +217,13 @@ class _OtaScreenState extends State<OtaScreen> {
     });
   }
 
-  /// Step 3: Start OTA upgrade
+  /// Step 4: Start OTA upgrade
   Future<void> _runUpgrade() async {
     if (!_canStartOta) return;
 
-    // Ensure device is disconnected before starting OTA
-    if (widget.device.device.isConnected) {
-      AirocDataLogger.instance.i('BLE', 'Disconnecting device before OTA…');
-      await widget.device.device.disconnect();
-      await Future.delayed(const Duration(milliseconds: 500));
-    }
+    // Device is already connected from Step 2 (service discovery).
+    // The transport will reuse the existing connection — no disconnect/reconnect
+    // needed. This matches iOS CoreBluetooth behavior: one continuous connection.
 
     AirocDataLogger.instance.clear();
     AirocDataLogger.instance.i(
@@ -204,8 +274,12 @@ class _OtaScreenState extends State<OtaScreen> {
     }
   }
 
+  /// Check if Step 2 (discover services) can be started
+  bool get _canDiscoverServices => _isBonded && !_isBonding;
+
   /// Check if OTA can be started
   bool get _canStartOta =>
+      _isBonded &&
       _selectedServiceUuid != null &&
       _selectedCharacteristicUuid != null &&
       _selectedFile != null &&
@@ -213,16 +287,19 @@ class _OtaScreenState extends State<OtaScreen> {
 
   /// Get current step hint
   String get _currentHint {
+    if (!_isBonded) {
+      return 'Step 1: Tap "Pair Device" to pair with the device first.';
+    }
     if (_services.isEmpty) {
-      return 'Step 1: Tap "Discover Services" to read device UUIDs (pairing will happen automatically on first connect).';
+      return 'Step 2: Tap "Discover Services" to read device UUIDs.';
     }
     if (_selectedFile == null) {
-      return 'Step 2: Tap "Select Firmware" to choose a firmware file.';
+      return 'Step 3: Tap "Select Firmware" to choose a firmware file.';
     }
     if (!_canStartOta) {
-      return 'Step 3: Complete all steps above, then tap "Start OTA Upgrade".';
+      return 'Step 4: Complete all steps above, then tap "Start OTA Upgrade".';
     }
-    return 'Ready! Note: Device may prompt for pairing again when entering bootloader mode - this is normal.';
+    return 'Ready! Tap "Start OTA Upgrade" to begin the firmware update.';
   }
 
   @override
@@ -266,6 +343,8 @@ class _OtaScreenState extends State<OtaScreen> {
                     ],
                   ),
                 ),
+                // Bond state chip
+                _buildBondStateChip(),
               ],
             ),
           ),
@@ -276,9 +355,54 @@ class _OtaScreenState extends State<OtaScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: ListView(
                 children: [
-                  // Step 1: Discover UUIDs Card
+                  // Step 1: Pair Device Card
                   _buildCard(
-                    title: 'Step 1: Discover Services',
+                    title: 'Step 1: Pair Device',
+                    icon: _isBonded ? Icons.check_circle : Icons.bluetooth_connected,
+                    iconColor: _isBonded ? Colors.green : Colors.indigo,
+                    isLoading: _isBonding,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _isBonded
+                              ? 'Device paired successfully ✓'
+                              : 'Pair with the device before proceeding',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        const SizedBox(height: 12),
+                        // Pair button
+                        if (_isBonded)
+                          FilledButton.tonalIcon(
+                            onPressed: null,
+                            icon: const Icon(Icons.check_circle, size: 18),
+                            label: const Text('Paired ✓'),
+                          )
+                        else if (_isBonding)
+                          FilledButton.tonalIcon(
+                            onPressed: null,
+                            icon: const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                            label: const Text('Pairing…'),
+                          )
+                        else
+                          OutlinedButton.icon(
+                            onPressed: _pairDevice,
+                            icon: const Icon(Icons.bluetooth_connected),
+                            label: const Text('Pair Device'),
+                          ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Step 2: Discover Services Card
+                  _buildCard(
+                    title: 'Step 2: Discover Services',
                     icon: _services.isNotEmpty
                         ? Icons.check_circle
                         : Icons.dns,
@@ -290,12 +414,15 @@ class _OtaScreenState extends State<OtaScreen> {
                         Text(
                           _services.isNotEmpty
                               ? 'Services discovered ✓'
-                              : 'Read device service UUIDs (auto-pair on connect)',
+                              : 'Read device service UUIDs',
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                         const SizedBox(height: 12),
                         OutlinedButton.icon(
-                          onPressed: _isLoadingUuids ? null : _loadUuidsFromDevice,
+                          onPressed:
+                              (_isLoadingUuids || !_canDiscoverServices)
+                                  ? null
+                                  : _loadUuidsFromDevice,
                           icon: _isLoadingUuids
                               ? const SizedBox(
                                   width: 16,
@@ -305,6 +432,15 @@ class _OtaScreenState extends State<OtaScreen> {
                               : const Icon(Icons.search),
                           label: const Text('Discover Services'),
                         ),
+                        if (!_canDiscoverServices && !_isLoadingUuids) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            '⚠️ Pair device first (Step 1)',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: Colors.orange,
+                                ),
+                          ),
+                        ],
                         if (_services.isNotEmpty) ...[
                           const SizedBox(height: 16),
                           // Service UUID dropdown
@@ -390,9 +526,9 @@ class _OtaScreenState extends State<OtaScreen> {
 
                   const SizedBox(height: 12),
 
-                  // Step 2: Select Firmware Card
+                  // Step 3: Select Firmware Card
                   _buildCard(
-                    title: 'Step 2: Select Firmware',
+                    title: 'Step 3: Select Firmware',
                     icon: _selectedFile != null
                         ? Icons.check_circle
                         : Icons.upload_file,
@@ -425,9 +561,9 @@ class _OtaScreenState extends State<OtaScreen> {
 
                   const SizedBox(height: 12),
 
-                  // Step 3: Start OTA Card
+                  // Step 4: Start OTA Card
                   _buildCard(
-                    title: 'Step 3: Start OTA Upgrade',
+                    title: 'Step 4: Start OTA Upgrade',
                     icon: _canStartOta ? Icons.check_circle : Icons.system_update_alt,
                     iconColor: _canStartOta ? Colors.green : Colors.grey,
                     child: Column(
@@ -454,10 +590,18 @@ class _OtaScreenState extends State<OtaScreen> {
                               : const Icon(Icons.system_update_alt),
                           label: Text(_running ? 'Upgrading…' : 'Start OTA Upgrade'),
                         ),
-                        if (_services.isEmpty) ...[
+                        if (!_isBonded) ...[
                           const SizedBox(height: 4),
                           Text(
-                            '⚠️ Discover services first (Step 1)',
+                            '⚠️ Pair device first (Step 1)',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: Colors.orange,
+                                ),
+                          ),
+                        ] else if (_services.isEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            '⚠️ Discover services first (Step 2)',
                             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                   color: Colors.orange,
                                 ),
@@ -465,7 +609,7 @@ class _OtaScreenState extends State<OtaScreen> {
                         ] else if (_selectedFile == null) ...[
                           const SizedBox(height: 4),
                           Text(
-                            '⚠️ Select firmware file first (Step 2)',
+                            '⚠️ Select firmware file first (Step 3)',
                             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                   color: Colors.orange,
                                 ),
@@ -563,6 +707,39 @@ class _OtaScreenState extends State<OtaScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildBondStateChip() {
+    if (_isBonding) {
+      return const Chip(
+        avatar: SizedBox(
+          width: 14,
+          height: 14,
+          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+        ),
+        label: Text('Pairing…'),
+        backgroundColor: Colors.orange,
+        labelStyle: TextStyle(color: Colors.white, fontSize: 12),
+      );
+    }
+    if (_isBonded) {
+      return const Chip(
+        avatar: Icon(Icons.check_circle, size: 16, color: Colors.white),
+        label: Text('Paired'),
+        backgroundColor: Colors.green,
+        labelStyle: TextStyle(color: Colors.white, fontSize: 12),
+      );
+    }
+    return Chip(
+      avatar: Icon(
+        Icons.bluetooth_disabled,
+        size: 16,
+        color: Colors.red.shade300,
+      ),
+      label: const Text('Not Paired'),
+      backgroundColor: Colors.grey.shade200,
+      labelStyle: TextStyle(color: Colors.grey.shade700, fontSize: 12),
     );
   }
 

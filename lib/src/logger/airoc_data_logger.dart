@@ -22,8 +22,67 @@ enum AirocLogLevel {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ANSI color helpers (for terminal output)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// ANSI escape code helpers for colorized terminal output.
+class _Ansi {
+  const _Ansi._();
+
+  static const reset = '\x1B[0m';
+  static const bold = '\x1B[1m';
+  static const dim = '\x1B[2m';
+
+  // Foreground
+  static const green = '\x1B[32m';
+  static const magenta = '\x1B[35m';
+  static const cyan = '\x1B[36m';
+  static const gray = '\x1B[90m';
+  static const brightRed = '\x1B[91m';
+  static const brightYellow = '\x1B[93m';
+  static const brightCyan = '\x1B[96m';
+  static const white = '\x1B[97m';
+
+  // Backgrounds
+  static const bgRed = '\x1B[41m';
+  static const bgYellow = '\x1B[43m';
+  static const bgBlue = '\x1B[44m';
+
+  /// Level color.
+  static String levelColor(AirocLogLevel level) {
+    switch (level) {
+      case AirocLogLevel.verbose:
+        return '$dim$gray';
+      case AirocLogLevel.info:
+        return brightCyan;
+      case AirocLogLevel.warning:
+        return '$brightYellow$bold';
+      case AirocLogLevel.error:
+        return '$brightRed$bold';
+    }
+  }
+
+  /// Level badge with colored background.
+  static String levelBadge(AirocLogLevel level) {
+    switch (level) {
+      case AirocLogLevel.verbose:
+        return '$gray$bgBlue V $reset$gray';
+      case AirocLogLevel.info:
+        return '$white$bgBlue I $reset';
+      case AirocLogLevel.warning:
+        return '$white$bgYellow W $reset';
+      case AirocLogLevel.error:
+        return '$white$bgRed E $reset';
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Log entry
 // ─────────────────────────────────────────────────────────────────────────────
+
+/// Which direction BLE data flowed: transmit (phone→device) or receive (device→phone).
+enum AirocDataDirection { tx, rx }
 
 /// An immutable snapshot of one log line.
 class AirocLogEntry {
@@ -39,12 +98,16 @@ class AirocLogEntry {
   /// Optional hex dump of raw BLE bytes (TX or RX).
   final String? hex;
 
+  /// Data direction for BLE hex entries, null for plain messages.
+  final AirocDataDirection? direction;
+
   const AirocLogEntry({
     required this.timestamp,
     required this.level,
     required this.tag,
     required this.message,
     this.hex,
+    this.direction,
   });
 
   /// Formatted timestamp: HH:mm:ss.mmm
@@ -68,6 +131,26 @@ class AirocLogEntry {
       case AirocLogLevel.error:
         return 'E';
     }
+  }
+
+  /// Colorized string for terminal output.
+  String toColorizedString() {
+    final badge = _Ansi.levelBadge(level);
+    final tagStr = '${_Ansi.green}[$tag]${_Ansi.reset}';
+    final time = '${_Ansi.gray}$timeLabel${_Ansi.reset}';
+    final msgColor = _Ansi.levelColor(level);
+
+    String hexPart = '';
+    if (hex != null && hex!.isNotEmpty) {
+      final hexColor = direction == AirocDataDirection.tx
+          ? _Ansi.magenta
+          : direction == AirocDataDirection.rx
+              ? _Ansi.cyan
+              : _Ansi.gray;
+      hexPart = '\n    $hexColor$hex$_Ansi.reset';
+    }
+
+    return '$badge $time  $tagStr $msgColor$message$_Ansi.reset$hexPart';
   }
 
   @override
@@ -132,14 +215,30 @@ class AirocDataLogger {
 
   /// Log bytes that were **written** to a BLE characteristic (TX).
   void logTx(String tag, List<int> bytes, {String? label}) {
-    final desc = label != null ? '→ TX  [$label]  ${bytes.length} bytes' : '→ TX  ${bytes.length} bytes';
-    _log(AirocLogLevel.verbose, tag, desc, hex: _toHex(bytes));
+    final desc = label != null
+        ? '→ TX  [$label]  ${bytes.length} bytes'
+        : '→ TX  ${bytes.length} bytes';
+    _log(
+      AirocLogLevel.verbose,
+      tag,
+      desc,
+      hex: _toHex(bytes),
+      direction: AirocDataDirection.tx,
+    );
   }
 
   /// Log bytes **received** from a BLE notification (RX).
   void logRx(String tag, List<int> bytes, {String? label}) {
-    final desc = label != null ? '← RX  [$label]  ${bytes.length} bytes' : '← RX  ${bytes.length} bytes';
-    _log(AirocLogLevel.verbose, tag, desc, hex: _toHex(bytes));
+    final desc = label != null
+        ? '← RX  [$label]  ${bytes.length} bytes'
+        : '← RX  ${bytes.length} bytes';
+    _log(
+      AirocLogLevel.verbose,
+      tag,
+      desc,
+      hex: _toHex(bytes),
+      direction: AirocDataDirection.rx,
+    );
   }
 
   // ── Buffer management ────────────────────────────────────────────────────
@@ -152,13 +251,15 @@ class AirocDataLogger {
 
   // ── Internal ─────────────────────────────────────────────────────────────
 
-  void _log(AirocLogLevel level, String tag, String message, {String? hex}) {
+  void _log(AirocLogLevel level, String tag, String message,
+      {String? hex, AirocDataDirection? direction}) {
     final entry = AirocLogEntry(
       timestamp: DateTime.now(),
       level: level,
       tag: tag,
       message: message,
       hex: hex,
+      direction: direction,
     );
     _buffer.add(entry);
     if (_buffer.length > _maxEntries) {
@@ -167,9 +268,8 @@ class AirocDataLogger {
     if (!_controller.isClosed) {
       _controller.add(entry);
     }
-    // Mirror to Flutter/IDE console for free.
-    debugPrint('[AIROC][${entry.levelLabel}][$tag] $message'
-        '${hex != null ? '\n    $hex' : ''}');
+    // Mirror to Flutter/IDE console with ANSI colors.
+    debugPrint(entry.toColorizedString());
   }
 
   static String _toHex(List<int> bytes) {
@@ -185,4 +285,3 @@ class AirocDataLogger {
     }
   }
 }
-

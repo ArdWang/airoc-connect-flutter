@@ -14,13 +14,15 @@
 ## 功能特性
 
 - BLE 设备扫描和发现
-- 首次连接时自动配对
-- 服务和特征 UUID 发现
+- **显式手动配对** — 升级前配对一次，无意外弹窗
+- **单一连续连接** — iOS 风格的单连接模型，无重复重连
+- 服务和特征 UUID 发现（带属性过滤）
 - `.cyacd2` 和 `.cyacd` 固件文件支持
 - 实时 OTA 进度更新
-- 详细的错误日志和诊断
+- **彩色调试日志**（ANSI 终端颜色）
 - 基于当前状态的智能操作提示
 - OTA 完成后自动返回扫描界面
+- **写入模式自动检测**（write vs writeWithoutResponse）
 
 ## 安装
 
@@ -31,7 +33,7 @@ dependencies:
   flutter:
     sdk: flutter
 
-  airoc_connect_flutter: ^0.0.5
+  airoc_connect_flutter: ^0.0.7
 ```
 
 ### 平台要求
@@ -63,6 +65,10 @@ await manager.startScan(otaOnly: false);
 manager.scanner.devicesStream.listen((devices) {
   // 使用发现的设备更新 UI
 });
+
+// OTA 前先与设备配对
+final paired = await manager.pairDevice(selectedDevice);
+if (!paired) throw Exception('配对失败');
 
 // 选择固件并执行 OTA
 final otaFile = await manager.pickFirmwareFile();
@@ -96,19 +102,24 @@ Navigator.of(context).push(
 
 ### OTA 界面工作流程
 
-OTA 界面实现了简化的三步工作流程：
+OTA 界面实现了清晰的四步工作流程：
 
-1. **Step 1: Discover Services（发现服务）**
-   - 点击 "Discover Services" 读取设备 UUID
-   - 首次连接时系统会自动提示配对
+1. **步骤 1: 配对设备 (Pair Device)**
+   - 点击"配对设备"与设备建立配对
+   - 设备状态芯片显示配对进度（未配对 → 配对中… → 已配对 ✓）
+   - 后续步骤在配对成功前保持锁定状态
+
+2. **步骤 2: 发现服务 (Discover Services)**
+   - 点击"发现服务"读取设备 UUID
+   - 仅显示具有 WRITE + NOTIFY 属性的特征值
    - 从下拉菜单中选择 Service UUID 和 Characteristic UUID
 
-2. **Step 2: Select Firmware（选择固件）**
-   - 点击 "Select Firmware File" 选择 `.cyacd2` 或 `.cyacd` 文件
+3. **步骤 3: 选择固件 (Select Firmware)**
+   - 点击"选择固件文件"选择 `.cyacd2` 或 `.cyacd` 文件
    - 选择后显示文件详情（行数、大小）
 
-3. **Step 3: Start OTA Upgrade（开始升级）**
-   - 点击 "Start OTA Upgrade" 开始固件升级
+4. **步骤 4: 开始升级 (Start OTA Upgrade)**
+   - 点击"开始 OTA 升级"开始固件更新
    - 通过进度条和日志查看器监控进度
    - 完成后自动返回扫描界面
 
@@ -118,9 +129,10 @@ OTA 界面实现了简化的三步工作流程：
 
 | 状态 | 提示消息 |
 |------|--------|
-| 未发现服务 | "Step 1: Tap 'Discover Services' to read device UUIDs (pairing will happen automatically on first connect)." |
-| 未选择固件 | "Step 2: Tap 'Select Firmware' to choose a firmware file." |
-| 准备开始 | "Ready! Note: Device may prompt for pairing again when entering bootloader mode - this is normal." |
+| 未配对 | "步骤 1：点击"配对设备"首先与设备进行配对。" |
+| 未发现服务 | "步骤 2：点击"发现服务"读取设备 UUID。" |
+| 未选择固件 | "步骤 3：点击"选择固件"选择固件文件。" |
+| 准备开始 | "一切就绪！点击"开始 OTA 升级"开始固件更新。" |
 
 ## 配置
 
@@ -183,7 +195,8 @@ OTA 界面实现了简化的三步工作流程：
 | `performOta({device, file, onProgress})` | 执行 OTA 升级 |
 | `cancelOta()` | 取消正在进行的 OTA 升级 |
 | `isDeviceBonded(device)` | 检查设备是否已配对 |
-| `pairDevice(device)` | 与设备配对 |
+| `pairDevice(device)` | 与设备配对（绑定） |
+| `getDeviceBondState(device)` | 获取当前绑定状态字符串 |
 | `dispose()` | 释放资源 |
 
 ### AirocBleScanner
@@ -227,7 +240,7 @@ OTA 界面实现了简化的三步工作流程：
 
 ### 找不到设备
 
-- 验证设备广播名称是否匹配前缀过滤器（`blue/ota/r/sc`）
+- 验证设备广播名称是否匹配前缀过滤器（`blue/ota/r/sc/upg`）
 - 先禁用 `otaOnly` 以隔离 OTA 服务过滤问题
 - 在 Android 上，确保蓝牙和定位已启用并授权
 
@@ -241,18 +254,18 @@ OTA 界面实现了简化的三步工作流程：
 - 确认选择的服务/特征 UUID 与设备 OTA 协议匹配
 - 验证固件/设备兼容性和签名/安全约束
 - 检查 OTA `errorMessage` 和日志面板获取阶段级诊断
+- 验证特征值支持 WRITE + NOTIFY 属性（步骤 2 仅显示有效的特征值）
 
-### 重复配对提示
+### "WRITE property not supported" 错误
 
-- 如果设备在 bootloader 模式下改变 MAC 地址，系统会将其视为新设备
-- 这是预期行为，无法避免
-- 用户应在出现配对提示时确认
+- 插件现在自动检测写入模式 — 验证你的特征值具有 `write` 或 `writeWithoutResponse` 属性
+- 步骤 2 下拉菜单仅显示具有有效写入属性的特征值
 
-### GATT 133 错误
+### "Device is not paired" 错误
 
-- 通常由连接冲突或 GATT 缓存问题引起
-- 当前实现包含自动断开和重试逻辑
-- 确保 OTA 期间设备未连接到其他应用
+- 确保在开始升级前完成步骤 1（配对设备）
+- 如果设备之前已配对，应用会在初始化时自动检测
+- 在 Android 上，确保设备接受配对请求
 
 ## 固件文件格式
 
