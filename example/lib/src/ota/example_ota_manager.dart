@@ -22,6 +22,11 @@ class ExampleOtaManager {
 
   AirocOtaService? _activeService;
 
+  /// iOS/macOS (CoreBluetooth) 没有给 App 的编程式配对接口，
+  /// `createBond()` / `bondState` 在 flutter_blue_plus 中是 Android-only。
+  /// 苹果平台上配对是隐式的：访问加密特征值时由系统自动弹出配对框。
+  bool get _isAndroid => Platform.isAndroid;
+
   ExampleOtaManager({
     AirocBleScanner? scanner,
     ExampleOtaTransportFactory? transportFactory,
@@ -160,6 +165,10 @@ class ExampleOtaManager {
 
   /// Check if the device is currently bonded/paired
   Future<bool> isDeviceBonded(AirocDevice device) async {
+    // iOS/macOS 无法查询 bondState，用"已连接"作为就绪信号。
+    if (!_isAndroid) {
+      return device.device.isConnected;
+    }
     final state = await device.device.bondState.first;
     return state == BluetoothBondState.bonded;
   }
@@ -167,6 +176,30 @@ class ExampleOtaManager {
   /// Create a bond/pair with the device
   /// Note: Device must be connected before pairing.
   Future<bool> pairDevice(AirocDevice device) async {
+    // iOS/macOS：CoreBluetooth 无编程式配对接口，createBond/bondState 是
+    // Android-only。这里只需建立连接，系统会在访问加密特征值时自动提示配对。
+    if (!_isAndroid) {
+      try {
+        if (device.device.isDisconnected) {
+          AirocDataLogger.instance.i('BLE', 'Connecting device (implicit pairing on Apple platforms)…');
+          await device.device.connect(
+            timeout: const Duration(seconds: 10),
+            mtu: null,
+          );
+        }
+        AirocDataLogger.instance.i(
+          'BLE',
+          'Device connected ✓ Pairing (if required) will be prompted by the OS '
+          'when an encrypted characteristic is accessed.',
+        );
+        return device.device.isConnected;
+      } catch (e) {
+        AirocDataLogger.instance.e('BLE', 'Connection failed: $e');
+        return false;
+      }
+    }
+
+    // Android: 显式创建绑定
     // Check current bond state
     final initialState = await device.device.bondState.first;
     if (initialState == BluetoothBondState.bonded) {
@@ -216,6 +249,10 @@ class ExampleOtaManager {
 
   /// Get the current bond state of the device
   Future<String> getDeviceBondState(AirocDevice device) async {
+    // iOS/macOS 无法查询 bondState，返回连接状态作为近似。
+    if (!_isAndroid) {
+      return device.device.isConnected ? 'connected' : 'disconnected';
+    }
     final state = await device.device.bondState.first;
     return state.toString();
   }

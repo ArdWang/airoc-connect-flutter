@@ -36,20 +36,23 @@ class FlutterBluePlusOtaTransport implements AirocOtaTransport {
     if (device.isConnected) {
       AirocDataLogger.instance.i('BLE', 'Device already connected, reusing existing connection ✓');
 
-      // Verify bond state on the live connection
-      final bondState = await device.bondState.first;
-      final isBonded = bondState.toString().contains('bonded');
-      if (!isBonded) {
-        AirocDataLogger.instance.w(
-          'BLE',
-          'Device is NOT bonded ($bondState). '
-          'Please pair with the device before starting OTA upgrade.',
-        );
-        throw AirocOtaProtocolException(
-          'Device is not paired. Please go back to Step 1 and pair the device first.',
-        );
+      // Verify bond state on the live connection (Android only).
+      // iOS/macOS 无法查询 bondState，配对由系统在访问加密特征值时隐式完成。
+      if (Platform.isAndroid) {
+        final bondState = await device.bondState.first;
+        final isBonded = bondState.toString().contains('bonded');
+        if (!isBonded) {
+          AirocDataLogger.instance.w(
+            'BLE',
+            'Device is NOT bonded ($bondState). '
+            'Please pair with the device before starting OTA upgrade.',
+          );
+          throw AirocOtaProtocolException(
+            'Device is not paired. Please go back to Step 1 and pair the device first.',
+          );
+        }
+        AirocDataLogger.instance.i('BLE', 'Device is bonded ✓');
       }
-      AirocDataLogger.instance.i('BLE', 'Device is bonded ✓');
       return;
     }
 
@@ -66,24 +69,33 @@ class FlutterBluePlusOtaTransport implements AirocOtaTransport {
     // Wait for bond state to settle after connection
     await Future.delayed(const Duration(milliseconds: 300));
 
-    // Verify the device is bonded (pairing should be done externally before OTA)
-    final bondState = await device.bondState.first;
-    final isBonded = bondState.toString().contains('bonded');
-    if (!isBonded) {
-      AirocDataLogger.instance.w(
-        'BLE',
-        'Device is NOT bonded ($bondState). '
-        'Please pair with the device before starting OTA upgrade.',
-      );
-      throw AirocOtaProtocolException(
-        'Device is not paired. Please go back to Step 1 and pair the device first.',
-      );
+    // Verify the device is bonded (Android only).
+    // On Android, pairing should be done externally before OTA;
+    // on Apple platforms pairing is implicit when an encrypted characteristic
+    // is accessed during discover()/enableNotifications()/write().
+    if (Platform.isAndroid) {
+      final bondState = await device.bondState.first;
+      final isBonded = bondState.toString().contains('bonded');
+      if (!isBonded) {
+        AirocDataLogger.instance.w(
+          'BLE',
+          'Device is NOT bonded ($bondState). '
+          'Please pair with the device before starting OTA upgrade.',
+        );
+        throw AirocOtaProtocolException(
+          'Device is not paired. Please go back to Step 1 and pair the device first.',
+        );
+      }
+      AirocDataLogger.instance.i('BLE', 'Device is bonded ✓');
     }
-    AirocDataLogger.instance.i('BLE', 'Device is bonded ✓');
   }
 
   /// Check if the device is currently bonded/paired
   Future<bool> get isBonded async {
+    // iOS/macOS 无法查询 bondState，用"已连接"作为就绪信号。
+    if (!Platform.isAndroid) {
+      return device.isConnected;
+    }
     final state = await device.bondState.first;
     return state == BluetoothBondState.bonded;
   }

@@ -19,6 +19,7 @@
 
 ### Bug Fixes
 
+- **Fixed macOS Pairing "android-only" Error** — Pairing and OTA no longer throw `android-only` on macOS/iOS. The example app previously called `flutter_blue_plus` Android-only APIs (`createBond()`, `bondState`) unconditionally on all platforms; these are now guarded behind `Platform.isAndroid`. On iOS/macOS (CoreBluetooth), which expose no programmatic pairing API, `pairDevice()` just connects and pairing is triggered implicitly by the OS when an encrypted characteristic is accessed; `isDeviceBonded()` / `isBonded` fall back to connection state. Android retains its explicit `createBond()` flow unchanged.
 - **Fixed Repeated Pairing Prompts** — Eliminated unnecessary disconnect/reconnect cycles throughout the OTA flow. A single continuous BLE connection is now maintained from pairing through OTA completion, matching iOS CoreBluetooth behavior.
 - **Fixed "WRITE property not supported" Error** — Transport layer now auto-detects whether the characteristic supports `write` or `writeWithoutResponse` and uses the correct write mode.
 - **Fixed Multiple `createBond()` Calls** — Removed auto-pairing logic from the transport layer. Pairing is now exclusively handled by the user-facing "Pair Device" step.

@@ -266,6 +266,13 @@ Add entitlements to `macos/Runner/DebugProfile.entitlements`:
 - Make sure you complete Step 1 (Pair Device) before starting the upgrade
 - If the device was previously paired, the app will detect it automatically on init
 - On Android, ensure the device accepts the pairing request
+- On iOS/macOS there is no queryable bond state; "paired" is reflected by the connection state, and the OS prompts for pairing implicitly when an encrypted characteristic is accessed
+
+### "android-only" Error on macOS/iOS
+
+- Fixed. Pairing and OTA no longer call the Android-only `flutter_blue_plus` APIs (`createBond()`, `bondState`) on Apple platforms.
+- iOS/macOS (CoreBluetooth) expose no programmatic pairing API. Tapping "Pair Device" connects to the device; the system pairing dialog appears automatically when an encrypted characteristic is accessed (during service discovery or OTA).
+- Android is unaffected and retains its explicit `createBond()` flow.
 
 ## Firmware File Format
 

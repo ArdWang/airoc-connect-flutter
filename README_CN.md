@@ -266,6 +266,13 @@ OTA 界面实现了清晰的四步工作流程：
 - 确保在开始升级前完成步骤 1（配对设备）
 - 如果设备之前已配对，应用会在初始化时自动检测
 - 在 Android 上，确保设备接受配对请求
+- 在 iOS/macOS 上没有可查询的绑定状态；"已配对"由连接状态反映，系统会在访问加密特征值时隐式提示配对
+
+### macOS/iOS 上的 "android-only" 错误
+
+- 已修复。配对和 OTA 不再在苹果平台调用仅 Android 支持的 `flutter_blue_plus` API（`createBond()`、`bondState`）。
+- iOS/macOS（CoreBluetooth）没有给 App 的编程式配对接口。点击"配对设备"会连接到设备；系统会在访问加密特征值时（服务发现或 OTA 期间）自动弹出配对对话框。
+- Android 不受影响，保持原有显式 `createBond()` 流程。
 
 ## 固件文件格式
 

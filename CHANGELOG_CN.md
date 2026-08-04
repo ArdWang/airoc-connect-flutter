@@ -19,6 +19,7 @@
 
 ### 修复问题
 
+- **修复 macOS 配对 "android-only" 报错** — 配对和 OTA 不再在 macOS/iOS 上抛出 `android-only`。示例 App 此前在所有平台无条件调用 `flutter_blue_plus` 中仅 Android 支持的 API（`createBond()`、`bondState`），现已用 `Platform.isAndroid` 进行守卫。iOS/macOS（CoreBluetooth）没有给 App 的编程式配对接口，`pairDevice()` 仅建立连接，配对由系统在访问加密特征值时隐式触发；`isDeviceBonded()` / `isBonded` 回退到连接状态判定。Android 保持原有显式 `createBond()` 流程不变。
 - **修复重复配对弹窗** — 消除了整个 OTA 流程中不必要的断开/重连循环。现在从配对到 OTA 完成维护一个连续的 BLE 连接，匹配 iOS CoreBluetooth 的行为。
 - **修复 "WRITE property not supported" 错误** — 传输层现在自动检测特征值支持 `write` 还是 `writeWithoutResponse`，并使用正确的写入模式。
 - **修复多次 `createBond()` 调用** — 从传输层移除了自动配对逻辑。配对现在完全由用户操作的"配对设备"步骤处理。
