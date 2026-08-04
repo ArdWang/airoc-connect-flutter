@@ -22,7 +22,7 @@ version: 0.0.7
 
 environment:
   sdk: ">=3.8.1 <4.0.0"
-  flutter: ">=3.32.7 <4.0.0"
+  flutter: ">=3.32.7"
 
 # Platforms - only Android, iOS, and macOS are supported
 platforms:
