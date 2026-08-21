@@ -1,5 +1,15 @@
 # AIROC Connect Flutter Changelog
 
+## 0.0.8
+
+**Lowered Minimum SDK Requirements**
+
+- Minimum Dart SDK lowered from 3.8.1 to 3.2.0
+- Minimum Flutter lowered from 3.32.7 to 3.16.0
+- Downgraded `crypto` to ^3.0.3 and `flutter_lints` to ^4.0.0, the last versions compatible with Dart SDK 3.2
+
+---
+
 ## 0.0.7
 
 **OTA Workflow Redesign & Connection Stability**

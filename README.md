@@ -34,8 +34,13 @@ dependencies:
   flutter:
     sdk: flutter
 
-  airoc_connect_flutter: ^0.0.7
+  airoc_connect_flutter: ^0.0.8
 ```
+
+### Requirements
+
+- **Dart SDK**: 3.2.0+
+- **Flutter**: 3.16.0+
 
 ### Platform Requirements
 

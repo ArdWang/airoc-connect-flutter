@@ -338,7 +338,7 @@ class _OtaScreenState extends State<OtaScreen> {
             ),
             child: Row(
               children: [
-                Icon(Icons.bluetooth_connected, color: Colors.indigo),
+                const Icon(Icons.bluetooth_connected, color: Colors.indigo),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(

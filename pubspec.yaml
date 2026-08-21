@@ -18,11 +18,11 @@ repository: https://github.com/ArdWang/airoc-connect-flutter
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 0.0.7
+version: 0.0.8
 
 environment:
-  sdk: ">=3.8.1 <4.0.0"
-  flutter: ">=3.32.7"
+  sdk: ">=3.2.0 <4.0.0"
+  flutter: ">=3.16.0"
 
 # Platforms - only Android, iOS, and macOS are supported
 platforms:
@@ -41,7 +41,8 @@ dependencies:
     sdk: flutter
 
   # Crypto utilities for checksum calculation
-  crypto: ^3.0.6
+  # ^3.0.3 is the last version line that supports Dart SDK 3.2 (3.0.4+ requires Dart 3.4+)
+  crypto: ^3.0.3
 
 dev_dependencies:
   flutter_test:
@@ -52,7 +53,8 @@ dev_dependencies:
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  flutter_lints: ^6.0.0
+  # ^4.0.0 is the last version that supports Dart SDK 3.2 (5.0.0+ requires Dart 3.5+)
+  flutter_lints: ^4.0.0
 
   # Test mocking
   mocktail: ^1.0.4

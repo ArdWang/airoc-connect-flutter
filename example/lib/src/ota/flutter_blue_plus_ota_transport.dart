@@ -47,7 +47,7 @@ class FlutterBluePlusOtaTransport implements AirocOtaTransport {
             'Device is NOT bonded ($bondState). '
             'Please pair with the device before starting OTA upgrade.',
           );
-          throw AirocOtaProtocolException(
+          throw const AirocOtaProtocolException(
             'Device is not paired. Please go back to Step 1 and pair the device first.',
           );
         }
@@ -82,7 +82,7 @@ class FlutterBluePlusOtaTransport implements AirocOtaTransport {
           'Device is NOT bonded ($bondState). '
           'Please pair with the device before starting OTA upgrade.',
         );
-        throw AirocOtaProtocolException(
+        throw const AirocOtaProtocolException(
           'Device is not paired. Please go back to Step 1 and pair the device first.',
         );
       }
